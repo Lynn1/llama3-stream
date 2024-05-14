@@ -88,3 +88,5 @@ python ./stream_client.py
 ```
 
 You can flirt with it now.
+
+https://github.com/Lynn1/llama3-stream/assets/12999494/cfba26fd-cbbf-4f0f-92ae-d326050d9c3c
