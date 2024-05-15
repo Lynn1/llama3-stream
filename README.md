@@ -1,6 +1,10 @@
 # LLAMA3-STREAM
 
-A simple and efficient llama3 local service deployment solution that supports real-time streaming response and is optimized for common Chinese character garbled characters.
+A simple and efficient llama3 local service deployment solution that supports:
+
+* real-time streaming response,
+* arbitrary number of local GPUs (i.e.,MP value setting),
+* and is optimized for common Chinese garbled characters.
 
 # Quick Start
 
@@ -44,7 +48,7 @@ Please refer to the official guide to download : [meta-llama/llama3: The officia
 If you choose to download them from huggingface, please note that we are using the model format from the original folder
 `https://huggingface.co/meta-llama/Meta-Llama-3-*B-Instruct/orignial`
 
-## *Step 4 (Optional) Recut the 70B model shards to fit your local GPU numbers
+## Step 4 (Optional) Recut the 70B model into $\{MP\} shards to fit your local GPU numbers
 
 If you have >=8xGUPs on your computer, or you only want to test the small 7B model, you can skip this step and directly go to Step 5.
 
@@ -52,11 +56,13 @@ Or, you may need to redo the "Horizontal Model Sharding" process to let the larg
 
 I've prepared a convenient script for this step, you can find it here: [Lynn1/llama3-on-2GPUs](https://github.com/Lynn1/llama3-on-2GPUs)
 
+Set the MP values to the number of model shards you end up using (i.e., the number of GPUs working in parallel).
+
 ## Step 5 Run and play
 
 Once you have the right model ready, you can run the code to start a server and play with the client.
 
-**Note that:** befor you run, I recommand to comment the 80-81 lines in the llama3/llama/generation.py
+**Note that:** befor you run, I recommand to comment the 80-81 lines in the `llama3/llama/generation.py`
 
 ```python
 #if local_rank > 0:
@@ -67,21 +73,27 @@ Once you have the right model ready, you can run the code to start a server and 
 
 **Run the server:**
 
-(Remember to replace the *server ip address* in the `run_server.sh` file to your own ip)
+1. Replace the *server ip address* in the `run_server.sh` file to your own ip
+2. Set the MP values to the number of model shards you end up using (i.e., the number of GPUs working in parallel).
+3. Run the `run_server.sh` in terminal:
 
 ```bash
 ./run_server.sh
 ```
 
-Assuming you use MP=2 in Step 4, you will see 2 lines of service ready prompt in the terminal:
+Assuming you've use MP=2 in Step 4, you will see 2 lines of service ready prompt in the terminal:
 
+```
 ' 0: starting http-server xxxx:xx … '
-
 ' 1: starting http-server xxxx:xx … '
+```
 
-At this point, you can run the client from another computer:
+(Similarly, if you use MP= 4 the service should display 4 lines when fully started)
 
-(Again, remember to replace the *server ip address* in the `run_server.sh` file to your own ip)
+At this point, you can run the client:
+
+1. Replace the *server ip address* in the `stream_client.py` file to your own ip
+2. Run the `stream_client.py` in another terminal (or another connected computer)：
 
 ```python
 python ./stream_client.py
