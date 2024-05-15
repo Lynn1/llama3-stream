@@ -14,9 +14,12 @@ import time
 def request_example(
         request_str:str, 
         server_ip:str, 
-        server_port:int):
-    conn = HTTPConnection(server_ip, server_port,timeout=300)
-    conn2 = HTTPConnection(server_ip, server_port+1,timeout=300) # Assuming you use MP=2 in Step 4
+        server_port:int,
+        MP:int=2):
+    assert MP > 0, "The number of multiprocessors on server should be greater than 0"
+    conn = []
+    for i in range(MP):
+        conn.append(HTTPConnection(server_ip, server_port+i,timeout=300))
 
     # The request string contains special characters such as Chinese characters
     # The string is urL-encoded using urllib.parse.quote
@@ -24,11 +27,11 @@ def request_example(
     # Adds an encoded string to the requested URL
     # time.sleep(0.5)
     request_path = "/" + encoded_request_str
-    conn.request("GET", request_path)
-    conn2.request("GET", request_path)
+    for i in range(MP):
+        conn[i].request("GET", request_path)
     print(f"Send request: {request_str}")
 
-    response = conn.getresponse()
+    response = conn[0].getresponse()
     print(f"Response status: {response.status}")
     print(f"Response reason: {response.reason}")
 
@@ -44,17 +47,18 @@ def request_example(
         except UnicodeDecodeError:
             # If the decoding fails (possibly because a split multibyte character is encountered), more data is read
             continue
-    conn.close()
-    conn2.close()
+    for i in range(MP):
+        conn[i].close()
 
 
 if __name__ == '__main__':
+    MP = 2 # you can change it to the number of parallel processors on the server side
     request_str = "怎么从纽约去北京?" # How to get to Beijing from New York? (test with chinese)
-    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080)  ###replace the ip address of the server side
+    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080, MP = MP)  ###replace the ip address of the server side
     time.sleep(2)
 
     request_str = "请讲个有趣的中文古诗给我听。"
-    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080) 
+    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080, MP = MP) 
     time.sleep(2)
 
     
