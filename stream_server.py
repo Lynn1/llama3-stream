@@ -34,15 +34,21 @@ def hold_response(generator,conn):
 
 
 class StreamingHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    # def do_GET(self):
+    def do_POST(self):
         global child_conn1
         if not child_conn1:
             print("child_conn1 is None")
             return
         self.send_conn = child_conn1 # Gets the foreground background process communication pipeline
+
         # Parse the request string from the URL of the GET request
-        path_str = self.path.strip("/")
-        request_str = urllib.parse.unquote(path_str)  # Decode the URL encoded string
+        # path_str = self.path.strip("/")
+        # request_str = urllib.parse.unquote(path_str)  # Decode the URL encoded string
+
+        # Parse the request string from the body of the POST request instead of the URL
+        request_str = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
+
         self.send_conn.send(request_str)  # Sends the request string to the foreground inference process
 
         if localrank>0:

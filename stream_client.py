@@ -23,12 +23,16 @@ def request_example(
 
     # The request string contains special characters such as Chinese characters
     # The string is urL-encoded using urllib.parse.quote
-    encoded_request_str = urllib.parse.quote(request_str)
+    # encoded_request_str = urllib.parse.quote(request_str)
     # Adds an encoded string to the requested URL
     # time.sleep(0.5)
-    request_path = "/" + encoded_request_str
+    # request_path = "/" + encoded_request_str
+    headers = {'Content-type': 'application/json',
+               'Accept': 'text/plain'}
+    
     for i in range(MP):
-        conn[i].request("GET", request_path)
+        # conn[i].request("GET", request_path)
+        conn[i].request("POST", "/api", body=request_str, headers=headers) # Send the request string via the POST method instead of get
     print(f"Send request: {request_str}")
 
     response = conn[0].getresponse()

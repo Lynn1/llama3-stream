@@ -6,6 +6,8 @@ A simple and efficient llama3 local service deployment solution that supports:
 * arbitrary number of local GPUs (i.e.,MP value setting),
 * and is optimized for common Chinese garbled characters.
 
+https://github.com/Lynn1/llama3-stream/assets/12999494/cfba26fd-cbbf-4f0f-92ae-d326050d9c3c
+
 # Quick Start
 
 ## Step 1 Install the environment
@@ -100,5 +102,3 @@ python ./stream_client.py
 ```
 
 You can flirt with it now.
-
-https://github.com/Lynn1/llama3-stream/assets/12999494/cfba26fd-cbbf-4f0f-92ae-d326050d9c3c
