@@ -5,6 +5,7 @@ A simple and efficient llama3 local service deployment solution that supports:
 * real-time streaming response,
 * arbitrary number of local GPUs (i.e.,MP value setting),
 * and is optimized for common Chinese garbled characters.
+* (update 2024.7.31) Add support for dialog interrupts (Press ctrl+c on the client terminal)
 
 https://github.com/Lynn1/llama3-stream/assets/12999494/cfba26fd-cbbf-4f0f-92ae-d326050d9c3c
 
@@ -24,7 +25,7 @@ In my test, I used cuda_11.8
 ### 2 Create a python venv
 
 ```bash
-conda create -n llama3 python==3.10
+conda create -n llama3 python==3.11
 conda activate llama3
 pip install torch fairscale fire tiktoken==0.4.0 blobfile
 ```
@@ -90,7 +91,7 @@ Assuming you've use MP=2 in Step 4, you will see 2 lines of service ready prompt
 ' 1: starting http-server xxxx:xx … '
 ```
 
-(Similarly, if you use MP= 4 the service should display 4 lines when fully started)
+(Similarly, **if you use MP= 4 you should wait until the service display 4 lines when fully started**)
 
 At this point, you can run the client:
 

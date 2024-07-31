@@ -1,6 +1,10 @@
 
 """
-https://github.com/Lynn1 update 2024.4.26 
+https://github.com/Lynn1 
+update 2024.7.31
+Add support for dialog interrupts (Press ctrl+c on the client terminal)
+
+update 2024.4.26 
 This code implements an HTTP client that will send a GET request to the HTTP server,
 The request contains a string (simulating user input),
 The server response is then streamed character by character.
@@ -32,7 +36,7 @@ def request_example(
     
     for i in range(MP):
         # conn[i].request("GET", request_path)
-        conn[i].request("POST", "/api", body=request_str, headers=headers) # Send the request string via the POST method instead of get
+        conn[i].request("POST", "/api", body=request_str.encode('utf-8'), headers=headers) # Send the request string via the POST method instead of get
     print(f"Send request: {request_str}")
 
     response = conn[0].getresponse()
@@ -41,28 +45,39 @@ def request_example(
 
     # Stream character by character reading (in order to parse UTF-8 characters correctly, a buffer is used to store possible multi-byte characters)
     buffer = bytes()
-    while chunk := response.read(1):
-        buffer += chunk  # Adds the read bytes to the buffer
-        try:
-            # Attempt to decode the entire buffer contents
-            text = buffer.decode('utf-8')
-            print(text, end='', flush=True)
-            buffer = bytes()  # Empty the buffer and wait for new content
-        except UnicodeDecodeError:
-            # If the decoding fails (possibly because a split multibyte character is encountered), more data is read
-            continue
-    for i in range(MP):
-        conn[i].close()
+    try:
+        while chunk := response.read(1):
+            buffer += chunk  # Adds the read bytes to the buffer
+            try:
+                # Attempt to decode the entire buffer contents
+                text = buffer.decode('utf-8')
+                print(text, end='', flush=True)
+                buffer = bytes()  # Empty the buffer and wait for new content
+            except UnicodeDecodeError:
+                # If the decoding fails (possibly because a split multibyte character is encountered), more data is read
+                continue
+            except KeyboardInterrupt: #Use ctrl+c to interrupt
+                print("request_example: Interrupt the request...")# Force the connection to close to send an interrupt signal
+                for i in range(MP):
+                    conn[i].close()
+                    print(f"conn[{i}] close.")
+                break
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        for i in range(MP):
+            conn[i].close()
+            print(f"conn[{i}] close.")
 
 
 if __name__ == '__main__':
     MP = 2 # you can change it to the number of parallel processors on the server side
     request_str = "怎么从纽约去北京?" # How to get to Beijing from New York? (test with chinese)
-    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080, MP = MP)  ###replace the ip address of the server side
+    request_example(request_str=request_str, server_ip="172.18.34.68", server_port=8080, MP = MP)  ###replace the ip address of the server side
     time.sleep(2)
 
     request_str = "请讲个有趣的中文古诗给我听。"
-    request_example(request_str=request_str, server_ip="192.168.1.101", server_port=8080, MP = MP) 
+    request_example(request_str=request_str, server_ip="172.18.34.68", server_port=8080, MP = MP) 
     time.sleep(2)
 
     

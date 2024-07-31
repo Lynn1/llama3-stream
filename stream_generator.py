@@ -2,6 +2,8 @@
 https://github.com/Lynn1  2024.5.11 update:
 Add stream generation support functions
 """
+# import sys
+# sys.path.append('/home/data1/meta-llama/') 
 
 from typing import List, Optional
 from llama3.llama import Dialog, Llama

@@ -1,6 +1,10 @@
 
 """
-https://github.com/Lynn1 update 2024.5.11
+https://github.com/Lynn1 
+update 2024.7.31
+Add support for dialog interrupts
+
+update 2024.5.11
 This code starts a generate_messages main process that communicates with the http_server child process via pipe,
 After the generate_messages process receives the request string, it calls the generator to generate the response string and sends it to the http_server process via pipe stream.
 The http_server subprocess listens for external client HTTP requests, parses the client request string, and passes it to the generate_messages process for a response.
@@ -14,21 +18,59 @@ import fire
 from typing import Optional
 import os
 from stream_generator import LLMGenerator
+import torch
+import torch.distributed as dist
 
+MP = 2  #be consistent with run_server.sh
+INTERRUPT_SIGNAL = "<INTERRUPT_SIGNAL>"
 localrank = 0
 parent_conn1 = None # Process communication pipeline: Used by the foreground process (generator) to pass the generated string to the background process
 child_conn1 = None  # Process communication pipeline: Used by the background process (generator) to pass the generated string to the foreground process
 
+def check_interrupt(conn,localrank=0):
+    interrupt_tensor = torch.zeros(1)
+    if localrank<1:
+        if conn.poll():  # Check whether there are messages from the http process
+            if conn.recv() == INTERRUPT_SIGNAL:
+                interrupt_tensor += 1
+        for i in range(1,MP):
+            dist.send(tensor=interrupt_tensor,dst=i) #Broadcast to others
+    else:
+        dist.recv(tensor=interrupt_tensor,src=0)
+
+    if interrupt_tensor[0] > 0:
+        return True
+    return False
+
+def response_stream(generator,conn,prompt,localrank=0):
+    res=""
+    interrupt=False
+    for response in generator.stream_chat(prompt):
+        interrupt=check_interrupt(conn,localrank) #Check for interrupt signals in each stream_chat loop
+        if interrupt:
+            break
+        if response != '<user_end>':
+            res += response
+            if localrank<1:
+                conn.send(response) # The resulting string is sent to the http process
+    return res,interrupt
 
 def hold_response(generator,conn):
-    request_str = ""
     while True:
+        request_str = ""
         request_str = conn.recv()
         if request_str:  # Check for new request strings
-            for response in generator.stream_chat(request_str):
-                if localrank<1:
-                    conn.send(response)# The resulting string is sent to the http child process
-            request_str = "" # After the generation, reset the request string
+            res,interrupt = response_stream(generator,conn,request_str,localrank)
+            if interrupt:
+                print(f"{localrank} hold_response: interrupt at line 61")
+                continue
+            # for response in generator.stream_chat(request_str):
+            #     if localrank<1:
+            #         conn.send(response)# The resulting string is sent to the http child process
+            # request_str = "" # After the generation, reset the request string
+                        # 对话结束标志
+            if localrank<1 and (not interrupt): 
+                conn.send('<user_end>')
         else:
             time.sleep(0.5)  # Wait a little to receive a new request string
 
@@ -64,17 +106,23 @@ class StreamingHTTPRequestHandler(BaseHTTPRequestHandler):
         # streaming
         print(f"{localrank}: http sent response: ")
         while True:
-            if self.send_conn.poll():
-                message = self.send_conn.recv()  # Receives the generated string from the main process
-                text = f"{message}"  # Fetch string\n
-                if text == "<user_end>":
-                    self.wfile.write(b'\n')
-                    self.wfile.flush()
-                    # print('\n')
-                    break
-                self.wfile.write(text.encode('utf-8')) # Output character by character using UTF-8 encoding
-                self.wfile.flush() # Force buffer contents to be written out
-        print(f"\n{localrank}: total time cost: {time.time() - start_time:.2f} seconds.\n")
+            try:
+                if self.send_conn.poll():
+                    message = self.send_conn.recv()  # Receives the generated string from the generator process
+                    text = f"{message}"  # Fetch string\n
+                    if text == "<user_end>":
+                        self.wfile.write(b'\n')
+                        self.wfile.flush()
+                        # print('\n')
+                        break
+                    self.wfile.write(text.encode('utf-8')) # Output character by character using UTF-8 encoding
+                    self.wfile.flush() # Force buffer contents to be written out
+                    print(text, end='', flush=True)
+            except BrokenPipeError:
+                print(">>>>>>>>>>>>>>>>>Client disconnected<<<<<<<<<<<<<<")
+                self.send_conn.send(INTERRUPT_SIGNAL)  # Send the interrupt signal to the generator process
+                break
+        print(f"\n{localrank}: dialog timing: {time.time() - start_time:.2f} seconds.\n")
 
 def http_server(
         send_conn,
